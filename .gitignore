@@ -14,10 +14,15 @@
 
 # production
 /build
+/dist
+
+# electron
+/dist/electron
 
 # misc
 .DS_Store
 *.pem
+.claude/*
 
 # debug
 npm-debug.log*
@@ -34,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database
+*.db
+*.db-shm
+*.db-wal
