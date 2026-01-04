@@ -1,5 +1,7 @@
 import type { Category } from '../types/transaction';
 
+export type { Category } from '../types/transaction';
+
 export const CATEGORIES: Category[] = [
   'Dining',
   'Groceries',

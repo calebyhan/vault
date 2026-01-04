@@ -115,6 +115,11 @@ export default function ImportPage() {
 
   // Select multiple files via dialog
   const handleFileSelect = async () => {
+    if (!window.electronAPI) {
+      alert('This feature requires Electron. Please run: npm run dev');
+      return;
+    }
+
     try {
       const selectedPaths = await window.electronAPI.selectMultipleFiles();
       if (!selectedPaths || selectedPaths.length === 0) {
@@ -167,6 +172,11 @@ export default function ImportPage() {
 
   // Handle column mapping submission
   const handleMappingSubmit = async (mapping: { date: string; merchant: string; amount: string }) => {
+    if (!window.electronAPI) {
+      alert('This feature requires Electron. Please run: npm run dev');
+      return;
+    }
+
     const currentFile = files[currentFileIndex];
 
     try {
@@ -204,6 +214,11 @@ export default function ImportPage() {
 
   // Handle import confirmation from preview
   const handleImportConfirm = async () => {
+    if (!window.electronAPI) {
+      alert('This feature requires Electron. Please run: npm run dev');
+      return;
+    }
+
     setStep('importing');
     setProgress(10);
 
@@ -226,7 +241,7 @@ export default function ImportPage() {
       // Currency conversion will happen automatically in the IPC handler
       for (let i = 0; i < allTransactions.length; i++) {
         const trans = allTransactions[i];
-        const merchantCategories = categorizations[trans.merchant];
+        const merchantCategories = categorizations.get(trans.merchant);
 
         await window.electronAPI.addTransaction({
           date: trans.date,

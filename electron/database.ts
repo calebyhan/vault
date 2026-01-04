@@ -29,9 +29,9 @@ export async function initializeDatabase(): Promise<void> {
     db.pragma('journal_mode = WAL');
 
     // Read and execute schema
-    // In development: __dirname is dist/electron/electron, need to go back to project root
-    // In production: __dirname is similar structure
-    const schemaPath = path.join(__dirname, '../../../src/db/schema/schema.sql');
+    // __dirname is dist/electron/electron, schema is at dist/electron/src/db/schema/schema.sql
+    // So we go up one level (to dist/electron) then into src/db/schema
+    const schemaPath = path.join(__dirname, '../src/db/schema/schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf-8');
 
     // Execute schema

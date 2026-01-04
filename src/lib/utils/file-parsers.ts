@@ -275,6 +275,7 @@ function extractYearFromPDF(text: string, filename: string): number {
 export async function parsePDF(buffer: Buffer, filename: string = ''): Promise<ParseResult> {
   try {
     // Import pdf-parse dynamically - it's a CommonJS module (v2 API)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PDFParse } = require('pdf-parse');
     const parser = new PDFParse({ data: buffer });
     const result = await parser.getText();

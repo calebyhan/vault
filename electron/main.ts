@@ -38,7 +38,7 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../out/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../../../out/index.html'));
   }
 
   mainWindow.on('closed', () => {
@@ -59,6 +59,16 @@ app.whenReady().then(async () => {
     });
   } catch (error) {
     console.error('Failed to initialize app:', error);
+
+    // Show error dialog in production
+    if (!isDev) {
+      const { dialog } = require('electron');
+      dialog.showErrorBox(
+        'Initialization Error',
+        `Failed to start Vault: ${error instanceof Error ? error.message : String(error)}\n\nCheck console for details.`
+      );
+    }
+
     app.quit();
   }
 });

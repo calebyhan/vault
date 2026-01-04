@@ -9,7 +9,7 @@
     "dev:compile": "tsc -p tsconfig.electron.json && npm run copy-sql",
     "dev:electron": "wait-on http://localhost:3000 && electron .",
     "dev:electron:watch": "tsc -p tsconfig.electron.json --watch",
-    "copy-sql": "mkdir -p dist/electron/src/db/migrations && cp src/db/migrations/*.sql dist/electron/src/db/migrations/",
+    "copy-sql": "mkdir -p dist/electron/src/db/migrations dist/electron/src/db/schema && cp src/db/migrations/*.sql dist/electron/src/db/migrations/ && cp src/db/schema/*.sql dist/electron/src/db/schema/",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "build": "next build",
@@ -74,7 +74,7 @@
     },
     "files": [
       "out/**/*",
-      "electron/**/*",
+      "dist/electron/**/*",
       "package.json"
     ],
     "mac": {

@@ -35,7 +35,7 @@ export function ColumnMapper({ headers, onMapping, onCancel }: ColumnMapperProps
       <CardHeader>
         <CardTitle>Map CSV Columns</CardTitle>
         <CardDescription>
-          We couldn't auto-detect the columns. Please manually map them below.
+          We couldn&apos;t auto-detect the columns. Please manually map them below.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

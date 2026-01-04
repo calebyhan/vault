@@ -64,7 +64,7 @@ export function FindSimilarDialog({
   }, [isOpen, transaction, threshold]);
 
   const loadSimilarTransactions = async () => {
-    if (!transaction) return;
+    if (!transaction || !window.electronAPI) return;
 
     setLoading(true);
     try {
@@ -108,7 +108,7 @@ export function FindSimilarDialog({
   };
 
   const handleApply = async () => {
-    if (selected.size === 0 && !transaction) return;
+    if ((selected.size === 0 && !transaction) || !window.electronAPI) return;
 
     // Include the original transaction ID plus all selected similar transactions
     const transactionIds = Array.from(selected);

@@ -49,9 +49,13 @@ export function ImportPreview({ transactions, totalCount, onConfirm, onCancel }:
                 <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-3">
                     {transaction.status === 'error' ? (
-                      <AlertCircle className="h-4 w-4 text-destructive" title={transaction.statusMessage} />
+                      <span title={transaction.statusMessage}>
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      </span>
                     ) : transaction.status === 'warning' ? (
-                      <AlertCircle className="h-4 w-4 text-orange-500" title={transaction.statusMessage} />
+                      <span title={transaction.statusMessage}>
+                        <AlertCircle className="h-4 w-4 text-orange-500" />
+                      </span>
                     ) : (
                       <Check className="h-4 w-4 text-green-600" />
                     )}

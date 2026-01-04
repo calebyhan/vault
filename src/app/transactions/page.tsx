@@ -87,6 +87,7 @@ export default function TransactionsPage() {
   };
 
   const handleCategoryChange = async (id: number, category: string) => {
+    if (!window.electronAPI) return;
     try {
       await window.electronAPI.updateTransaction(id, { category });
       await loadTransactions();
@@ -96,6 +97,7 @@ export default function TransactionsPage() {
   };
 
   const handleTypeChange = async (id: number, transaction_type: string) => {
+    if (!window.electronAPI) return;
     try {
       await window.electronAPI.updateTransaction(id, { transaction_type });
       await loadTransactions();
@@ -105,7 +107,7 @@ export default function TransactionsPage() {
   };
 
   const handleDelete = async () => {
-    if (transactionToDelete === null) return;
+    if (transactionToDelete === null || !window.electronAPI) return;
 
     try {
       await window.electronAPI.deleteTransaction(transactionToDelete);
@@ -118,6 +120,7 @@ export default function TransactionsPage() {
   };
 
   const handleDeleteAll = async () => {
+    if (!window.electronAPI) return;
     try {
       await window.electronAPI.deleteAllTransactions();
       await loadTransactions();
@@ -159,7 +162,7 @@ export default function TransactionsPage() {
   };
 
   const handleEditSave = async () => {
-    if (!transactionToEdit) return;
+    if (!transactionToEdit || !window.electronAPI) return;
 
     try {
       await window.electronAPI.updateTransaction(transactionToEdit.id, {
@@ -678,7 +681,7 @@ export default function TransactionsPage() {
               <Button
                 variant="destructive"
                 onClick={async () => {
-                  if (transactionToEdit) {
+                  if (transactionToEdit && window.electronAPI) {
                     await window.electronAPI.deleteTransaction(transactionToEdit.id);
                     await loadTransactions();
                     setEditDialogOpen(false);
