@@ -2,6 +2,25 @@
 
 All notable changes to Vault will be documented in this file.
 
+## [1.0.1] - 2026-01-04
+
+### Fixed
+- **Production build rendering** - Fixed Next.js static export not loading properly in Electron
+  - Added Express HTTP server to serve static files in production
+  - Fixed asset paths with relative URL configuration
+  - Fixed database schema file path resolution in packaged app
+  - Added proper error handling and user-friendly error dialogs
+  - Resolved navigation issues between pages in production build
+- **TypeScript compilation** - Fixed all type errors preventing production builds
+  - Added ElectronAPI type declarations
+  - Fixed window.electronAPI undefined checks
+  - Fixed React component prop type errors
+  - Fixed ESLint errors (empty interface, unescaped entities, require imports)
+- **Build configuration** - Improved electron-builder packaging
+  - Fixed file paths in packaged .asar file
+  - Added schema.sql to build artifacts
+  - Corrected electron main entry point paths
+
 ## [1.0.0] - 2026-01-03 - MVP Complete! 🎉
 
 ### Added - MVP Release
