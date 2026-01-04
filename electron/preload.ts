@@ -40,6 +40,12 @@ export interface ElectronAPI {
   // Export
   exportTransactionsCSV: (filters?: any) => Promise<string>;
   exportTransactionsPDF: (filters?: any, dateFrom?: string, dateTo?: string) => Promise<string>;
+
+  // Settings
+  saveApiKey: (apiKey: string) => Promise<{ success: boolean }>;
+  getApiKey: () => Promise<string | null>;
+  backupDatabase: () => Promise<string | null>;
+  restoreDatabase: () => Promise<{ success: boolean; message: string; backupPath: string } | null>;
 }
 
 const electronAPI: ElectronAPI = {
@@ -88,6 +94,12 @@ const electronAPI: ElectronAPI = {
   exportTransactionsCSV: (filters) => ipcRenderer.invoke('export:transactions-csv', filters),
   exportTransactionsPDF: (filters, dateFrom, dateTo) =>
     ipcRenderer.invoke('export:transactions-pdf', filters, dateFrom, dateTo),
+
+  // Settings
+  saveApiKey: (apiKey) => ipcRenderer.invoke('settings:save-api-key', apiKey),
+  getApiKey: () => ipcRenderer.invoke('settings:get-api-key'),
+  backupDatabase: () => ipcRenderer.invoke('db:backup'),
+  restoreDatabase: () => ipcRenderer.invoke('db:restore'),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

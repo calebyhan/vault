@@ -69,6 +69,7 @@
   "build": {
     "appId": "com.vault.app",
     "productName": "Vault",
+    "icon": "build/icon.png",
     "directories": {
       "output": "dist"
     },

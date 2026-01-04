@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, safeStorage, app } from 'electron';
 import { getDatabase } from './database';
 import type { Transaction, TransactionFilters } from '../src/lib/types/transaction';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -8,6 +8,42 @@ import { categorizeMerchantByPattern } from '../src/lib/categorization/merchant-
 import { CATEGORIES } from '../src/lib/constants/categories';
 import { ExchangeRateService } from '../src/lib/services/exchange-rate-service';
 import { normalizeDateToISO } from '../src/lib/utils/date-utils';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Helper function to get API key from env or database
+async function getApiKey(db: any): Promise<string | null> {
+  // First try environment variable (for development)
+  if (process.env.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+
+  try {
+    // Try to get encrypted key from database
+    const encryptedRow = db.prepare(
+      'SELECT value FROM settings WHERE key = ?'
+    ).get('gemini_api_key_encrypted') as { value: string } | undefined;
+
+    if (encryptedRow && safeStorage.isEncryptionAvailable()) {
+      const encryptedBuffer = Buffer.from(encryptedRow.value, 'base64');
+      const decrypted = safeStorage.decryptString(encryptedBuffer);
+      return decrypted;
+    }
+
+    // Fallback to plain text key
+    const plainRow = db.prepare(
+      'SELECT value FROM settings WHERE key = ?'
+    ).get('gemini_api_key') as { value: string } | undefined;
+
+    if (plainRow) {
+      return plainRow.value;
+    }
+  } catch (error) {
+    console.error('Error retrieving API key:', error);
+  }
+
+  return null;
+}
 
 export function registerIpcHandlers() {
   const db = getDatabase();
@@ -527,7 +563,7 @@ export function registerIpcHandlers() {
       }
 
       // Step 3: Call Gemini API
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = await getApiKey(db);
       if (!apiKey) {
         console.warn('GEMINI_API_KEY not set, defaulting to Other category');
         return {
@@ -631,7 +667,7 @@ export function registerIpcHandlers() {
     }
 
     // Check API key
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = await getApiKey(db);
     if (!apiKey) {
       console.error('GEMINI_API_KEY not set');
       for (const merchant of uncachedMerchants) {
@@ -1118,6 +1154,140 @@ Return ONLY a JSON array with ${uncachedMerchants.length} objects in the same or
       return filePath;
     } catch (error) {
       console.error('Error exporting to PDF:', error);
+      throw error;
+    }
+  });
+
+  // API Key Management
+  ipcMain.handle('settings:save-api-key', async (_, apiKey: string) => {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) {
+        console.warn('Encryption not available, storing API key in plain text');
+        // Fallback to storing in settings table
+        db.prepare(
+          'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'
+        ).run('gemini_api_key', apiKey);
+        return { success: true };
+      }
+
+      // Encrypt the API key using safeStorage
+      const encrypted = safeStorage.encryptString(apiKey);
+      const encryptedBase64 = encrypted.toString('base64');
+
+      // Store encrypted key in database
+      db.prepare(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'
+      ).run('gemini_api_key_encrypted', encryptedBase64);
+
+      console.log('API key saved successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving API key:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('settings:get-api-key', async () => {
+    try {
+      // First try to get from environment variable (for development)
+      if (process.env.GEMINI_API_KEY) {
+        return process.env.GEMINI_API_KEY;
+      }
+
+      // Try to get encrypted key from database
+      const encryptedRow = db.prepare(
+        'SELECT value FROM settings WHERE key = ?'
+      ).get('gemini_api_key_encrypted') as { value: string } | undefined;
+
+      if (encryptedRow && safeStorage.isEncryptionAvailable()) {
+        const encryptedBuffer = Buffer.from(encryptedRow.value, 'base64');
+        const decrypted = safeStorage.decryptString(encryptedBuffer);
+        return decrypted;
+      }
+
+      // Fallback to plain text key (for systems without encryption)
+      const plainRow = db.prepare(
+        'SELECT value FROM settings WHERE key = ?'
+      ).get('gemini_api_key') as { value: string } | undefined;
+
+      if (plainRow) {
+        return plainRow.value;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting API key:', error);
+      return null;
+    }
+  });
+
+  // Database Backup
+  ipcMain.handle('db:backup', async () => {
+    try {
+      const { filePath } = await dialog.showSaveDialog({
+        title: 'Backup Database',
+        defaultPath: `vault-backup-${new Date().toISOString().split('T')[0]}.db`,
+        filters: [{ name: 'Database Files', extensions: ['db'] }],
+      });
+
+      if (!filePath) {
+        return null; // User cancelled
+      }
+
+      // Get the current database path
+      const dbPath = path.join(app.getPath('userData'), 'transactions.db');
+
+      // Copy the database file
+      fs.copyFileSync(dbPath, filePath);
+
+      console.log('Database backed up to:', filePath);
+      return filePath;
+    } catch (error) {
+      console.error('Error backing up database:', error);
+      throw error;
+    }
+  });
+
+  // Database Restore
+  ipcMain.handle('db:restore', async () => {
+    try {
+      const { filePaths } = await dialog.showOpenDialog({
+        title: 'Restore Database',
+        filters: [{ name: 'Database Files', extensions: ['db'] }],
+        properties: ['openFile'],
+      });
+
+      if (!filePaths || filePaths.length === 0) {
+        return null; // User cancelled
+      }
+
+      const sourceFile = filePaths[0];
+      const dbPath = path.join(app.getPath('userData'), 'transactions.db');
+
+      // Create a backup of current database before restoring
+      const backupPath = path.join(
+        app.getPath('userData'),
+        `transactions-backup-${Date.now()}.db`
+      );
+      fs.copyFileSync(dbPath, backupPath);
+
+      // Close the current database connection
+      db.close();
+
+      // Copy the restore file over the current database
+      fs.copyFileSync(sourceFile, dbPath);
+
+      console.log('Database restored from:', sourceFile);
+      console.log('Previous database backed up to:', backupPath);
+
+      // Note: The app will need to restart for the changes to take effect
+      return {
+        success: true,
+        message: 'Database restored successfully. Please restart the application.',
+        backupPath
+      };
+    } catch (error) {
+      console.error('Error restoring database:', error);
       throw error;
     }
   });

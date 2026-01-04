@@ -69,9 +69,14 @@ export function UnifiedSettingsDialog({
   // API Key
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  
-  // Category customization (placeholder for future implementation)
-  const [categories, setCategories] = useState(CATEGORIES);
+
+  // Category customization
+  const [categories] = useState(CATEGORIES);
+  const [categoryColors, setCategoryColors] = useState<Record<string, string>>(() => {
+    // Load custom colors from localStorage on mount
+    const saved = localStorage.getItem('categoryColors');
+    return saved ? JSON.parse(saved) : { ...CATEGORY_COLORS };
+  });
 
   useEffect(() => {
     // Load settings from localStorage or electron store
@@ -85,8 +90,7 @@ export function UnifiedSettingsDialog({
 
     // Load API key if available
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      // TODO: Implement getApiKey in electron
-      // (window as any).electronAPI.getApiKey().then(key => setGeminiApiKey(key || ''));
+      (window as any).electronAPI.getApiKey().then((key: string | null) => setGeminiApiKey(key || ''));
     }
   }, []);
 
@@ -106,11 +110,24 @@ export function UnifiedSettingsDialog({
     localStorage.setItem('dateFormat', format);
   };
 
+  const handleColorChange = (category: string, color: string) => {
+    const newColors = { ...categoryColors, [category]: color };
+    setCategoryColors(newColors);
+    localStorage.setItem('categoryColors', JSON.stringify(newColors));
+
+    // Also update CSS variables for real-time color updates
+    document.documentElement.style.setProperty(`--category-${category.toLowerCase()}`, color);
+  };
+
   const handleSaveApiKey = async () => {
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      // TODO: Implement saveApiKey in electron
-      // await (window as any).electronAPI.saveApiKey(geminiApiKey);
-      console.log('Saving API key:', geminiApiKey);
+      try {
+        await (window as any).electronAPI.saveApiKey(geminiApiKey);
+        alert('API key saved successfully!');
+      } catch (error) {
+        console.error('Error saving API key:', error);
+        alert('Failed to save API key. Please try again.');
+      }
     }
   };
 
@@ -136,15 +153,37 @@ export function UnifiedSettingsDialog({
 
   const handleBackupDatabase = async () => {
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      // TODO: Implement backup functionality
-      console.log('Backing up database');
+      try {
+        const filePath = await (window as any).electronAPI.backupDatabase();
+        if (filePath) {
+          alert(`Database backed up successfully to:\n${filePath}`);
+        }
+      } catch (error) {
+        console.error('Error backing up database:', error);
+        alert('Failed to backup database. Please try again.');
+      }
     }
   };
 
   const handleRestoreDatabase = async () => {
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      // TODO: Implement restore functionality
-      console.log('Restoring database');
+      try {
+        const result = await (window as any).electronAPI.restoreDatabase();
+        if (result) {
+          alert(`${result.message}\n\nBackup of previous database saved to:\n${result.backupPath}`);
+          // Suggest restart
+          if (confirm('Would you like to restart the application now?')) {
+            if ((window as any).electronAPI.restartApp) {
+              (window as any).electronAPI.restartApp();
+            } else {
+              alert('Please restart the application manually for changes to take effect.');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring database:', error);
+        alert('Failed to restore database. Please try again.');
+      }
     }
   };
 
@@ -365,15 +404,12 @@ export function UnifiedSettingsDialog({
                         <div className="flex items-center gap-2">
                           <div
                             className="w-6 h-6 rounded border"
-                            style={{ backgroundColor: CATEGORY_COLORS[category] }}
+                            style={{ backgroundColor: categoryColors[category] }}
                           />
                           <input
                             type="color"
-                            value={CATEGORY_COLORS[category]}
-                            onChange={(e) => {
-                              // TODO: Implement color change
-                              console.log(`Change ${category} to ${e.target.value}`);
-                            }}
+                            value={categoryColors[category]}
+                            onChange={(e) => handleColorChange(category, e.target.value)}
                             className="w-8 h-8 rounded border cursor-pointer"
                           />
                         </div>

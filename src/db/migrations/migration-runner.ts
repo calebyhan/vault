@@ -30,6 +30,11 @@ export function runMigrations(db: Database.Database): void {
       name: '002_normalize_dates',
       filename: '002_normalize_dates.sql'
     },
+    {
+      version: 3,
+      name: '003_add_settings_table',
+      filename: '003_add_settings_table.sql'
+    },
   ];
 
   const migrationsDir = path.join(__dirname, '.');
