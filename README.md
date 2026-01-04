@@ -40,6 +40,8 @@ Vault helps you understand your spending habits by automatically categorizing cr
 
 ## Quick Start
 
+> **Just need the app?** Download the latest release from [GitHub Releases](https://github.com/calebyhan/vault/releases) - no setup required!
+
 ### Prerequisites
 
 - Node.js 18+ (LTS recommended)

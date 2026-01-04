@@ -3,9 +3,12 @@ import path from 'path';
 import { initializeDatabase } from './database';
 import { registerIpcHandlers } from './ipc-handlers';
 import dotenv from 'dotenv';
+import express from 'express';
 
 // Check if in development mode
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
+
+let server: any = null;
 
 // Load environment variables
 if (isDev) {
@@ -38,7 +41,8 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../../out/index.html'));
+    // In production, serve from local HTTP server
+    mainWindow.loadURL('http://localhost:3456');
   }
 
   mainWindow.on('closed', () => {
@@ -48,6 +52,31 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
+    // Start local HTTP server in production
+    if (!isDev) {
+      const expressApp = express();
+      const outDir = path.join(__dirname, '../../../out');
+
+      // Serve static files
+      expressApp.use(express.static(outDir));
+
+      // Handle all other routes - serve the appropriate HTML file
+      expressApp.use((req, res) => {
+        // Try to find matching HTML file, otherwise serve index.html
+        let htmlFile = req.path === '/' ? 'index.html' : req.path + '.html';
+        let filePath = path.join(outDir, htmlFile);
+
+        // If the HTML file doesn't exist, serve index.html (SPA fallback)
+        if (!require('fs').existsSync(filePath)) {
+          filePath = path.join(outDir, 'index.html');
+        }
+
+        res.sendFile(filePath);
+      });
+
+      server = expressApp.listen(3456, 'localhost');
+    }
+
     await initializeDatabase();
     registerIpcHandlers();
     createWindow();
@@ -75,6 +104,15 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    if (server) {
+      server.close();
+    }
     app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  if (server) {
+    server.close();
   }
 });
