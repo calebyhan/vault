@@ -7,6 +7,7 @@ export interface ParsedTransaction {
   amount: number;
   raw_description: string;
   transaction_type?: 'purchase' | 'transfer' | 'income';
+  currency?: string; // Extracted currency code (if available)
 }
 
 /**
@@ -71,7 +72,7 @@ export interface ParseResult {
 /**
  * Parse CSV file
  */
-export async function parseCSV(buffer: Buffer): Promise<ParseResult> {
+export async function parseCSV(buffer: Buffer, manualMapping?: ColumnMapping): Promise<ParseResult> {
   const text = buffer.toString('utf-8');
 
   return new Promise((resolve, reject) => {
@@ -82,8 +83,8 @@ export async function parseCSV(buffer: Buffer): Promise<ParseResult> {
         const headers = results.meta.fields || [];
         const rows = results.data as any[];
 
-        // Try to auto-detect column mapping
-        const mapping = detectColumnMapping(headers);
+        // Use manual mapping if provided, otherwise try to auto-detect
+        const mapping = manualMapping || detectColumnMapping(headers);
 
         if (!mapping) {
           // Return headers for manual mapping
@@ -104,8 +105,11 @@ export async function parseCSV(buffer: Buffer): Promise<ParseResult> {
 
           if (!dateStr || !merchant || !amountStr) continue;
 
-          // Parse amount - remove $, commas, handle negatives
-          const amountCleaned = amountStr.toString().replace(/[\$,]/g, '');
+          // Detect currency before cleaning
+          const currency = detectCurrency(amountStr.toString(), merchant);
+
+          // Parse amount - remove $, commas, currency symbols, and codes
+          const amountCleaned = amountStr.toString().replace(/[\$,€£¥₹]/g, '').replace(/[A-Z]{3}/g, '').trim();
           const amount = Math.abs(parseFloat(amountCleaned));
 
           if (isNaN(amount) || amount === 0) continue;
@@ -114,6 +118,7 @@ export async function parseCSV(buffer: Buffer): Promise<ParseResult> {
             date: convertToISODate(dateStr),
             merchant: merchant.trim(),
             amount: amount,
+            currency: currency, // Add currency
             raw_description: merchant,
             transaction_type: detectTransactionType(merchant),
           });
@@ -186,10 +191,14 @@ export function parseTXT(buffer: Buffer): ParseResult {
       const amountNum = Math.abs(parseFloat(amount.replace(/,/g, '')));
       if (!merchant.trim() || amountNum === 0) continue;
 
+      // Detect currency from merchant description and amount
+      const currency = detectCurrency(amount, merchant);
+
       transactions.push({
         date: convertToISODate(date),
         merchant: merchant.trim(),
         amount: amountNum,
+        currency: currency, // Add currency
         raw_description: line.trim(),
         transaction_type: detectTransactionType(merchant),
       });
@@ -203,10 +212,14 @@ export function parseTXT(buffer: Buffer): ParseResult {
         const amountNum = Math.abs(parseFloat(amount.replace(/,/g, '')));
 
         if (merchant.trim() && amountNum > 0) {
+          // Detect currency from merchant description and amount
+          const currency = detectCurrency(amount, merchant);
+
           transactions.push({
             date: convertToISODate(date),
             merchant: merchant.trim(),
             amount: amountNum,
+            currency: currency, // Add currency
             raw_description: line.trim(),
             transaction_type: detectTransactionType(merchant),
           });
@@ -256,8 +269,8 @@ function extractYearFromPDF(text: string, filename: string): number {
 }
 
 /**
- * Parse PDF file (Chase and other bank statement formats)
- * Looks for "Account Activity" section and extracts transactions
+ * Parse PDF file (Chase and Bank of America statement formats)
+ * Looks for "Account Activity" (Chase) or "Transactions" (BofA) sections and extracts transactions
  */
 export async function parsePDF(buffer: Buffer, filename: string = ''): Promise<ParseResult> {
   try {
@@ -273,13 +286,46 @@ export async function parsePDF(buffer: Buffer, filename: string = ''): Promise<P
     const statementYear = extractYearFromPDF(text, filename);
     console.log(`Detected statement year: ${statementYear}`);
 
-    // Find the "Account Activity" section (case-insensitive)
+    // Find the transaction section (support both Chase and Bank of America formats)
     const textLower = text.toLowerCase();
     const activityIndex = textLower.indexOf('account activity');
 
-    // If no "Account Activity" section found, try to parse the entire document
-    const activityText = activityIndex !== -1 ? text.substring(activityIndex) : text;
+    // For BofA, look for "Transactions" as a standalone header (not just the word "transactions")
+    // More specific: look for the exact pattern that BofA uses
+    const bofATransactionPattern = /^transactions\s*$/im;
+    const bofAMatch = text.match(bofATransactionPattern);
+    const transactionsIndex = bofAMatch ? text.toLowerCase().indexOf(bofAMatch[0].toLowerCase()) : -1;
+
+    // Determine which format we're dealing with
+    let activityText: string;
+    let isBofAFormat = false;
+
+    // Prefer Chase format if "Account Activity" is found
+    if (activityIndex !== -1) {
+      // Chase format - use "Account Activity" section
+      activityText = text.substring(activityIndex);
+      isBofAFormat = false;
+      console.log('Detected Chase PDF format');
+    } else if (transactionsIndex !== -1) {
+      // Bank of America format - use "Transactions" section
+      activityText = text.substring(transactionsIndex);
+      isBofAFormat = true;
+      console.log('Detected Bank of America PDF format');
+    } else {
+      // Try to parse the entire document
+      activityText = text;
+      console.log('No specific section found, parsing entire document');
+    }
+
     const lines = activityText.split('\n');
+
+    console.log(`Processing ${lines.length} lines from PDF...`);
+    if (!isBofAFormat) {
+      console.log('First 10 lines after "Account Activity":');
+      lines.slice(0, 10).forEach((line, idx) => {
+        console.log(`  [${idx}]: "${line.trim()}"`);
+      });
+    }
 
     // Pattern to match transaction lines
     // Looking for: Date  Description  Amount (not balance)
@@ -290,39 +336,126 @@ export async function parsePDF(buffer: Buffer, filename: string = ''): Promise<P
       const line = lines[i].trim();
 
       // Skip empty lines and headers
-      if (!line || line.includes('Account Activity') || line.includes('Date') || line.includes('Description')) {
+      // More specific header detection to avoid skipping transaction lines
+      const upperLine = line.toUpperCase();
+      if (!line ||
+          upperLine === 'ACCOUNT ACTIVITY' ||
+          upperLine === 'TRANSACTIONS' ||
+          upperLine === 'TRANSACTIONS CONTINUED' ||
+          upperLine.includes('PURCHASES AND ADJUSTMENTS') ||
+          (line.includes('Transaction') && line.includes('Posting') && line.includes('Date')) ||
+          (line.includes('Date') && line.includes('Description') && line.includes('Amount')) ||
+          (line.includes('Posting') && line.includes('Date') && !line.match(/^\d{1,2}\/\d{1,2}/)) ||
+          (line.includes('Reference') && line.includes('Number') && line.includes('Amount')) ||
+          line.includes('continued on next page') ||
+          upperLine.includes('MERCHANT NAME') ||
+          upperLine.includes('PAYMENTS AND OTHER CREDITS') ||
+          upperLine === 'PURCHASE') {
         continue;
       }
 
-      // Pattern 1: MM/DD/YYYY or MM/DD at start of line
-      const datePattern = /^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(.+?)\s+(-?\$?[\d,]+\.?\d{0,2})$/;
-      const match = line.match(datePattern);
+      if (isBofAFormat) {
+        // Bank of America multi-line format
+        // Line format: MM/DD  MM/DD  MERCHANT NAME
+        // Next line might have: AMOUNT CURRENCY
+        // Look for lines starting with MM/DD
+        const bofAPattern = /^(\d{1,2}\/\d{1,2})\s+(\d{1,2}\/\d{1,2})\s+(.+)$/;
+        const match = line.match(bofAPattern);
 
-      if (match) {
-        let [, date, merchant, amount] = match;
+        if (match) {
+          const [, transactionDate, postingDate, description] = match;
 
-        // Clean up date - add statement year if not present
-        if (!date.includes('/20') && !date.includes('/19')) {
-          date = `${date}/${statementYear}`;
+          // Look ahead for amount on the next line (e.g., "209.90 SEK")
+          let amount = '';
+          let currency = 'USD'; // Default to USD
+          let merchant = description.trim();
+
+          // Check next line for amount with currency code
+          if (i + 1 < lines.length) {
+            const nextLine = lines[i + 1].trim();
+            const amountPattern = /^([\d,]+\.?\d{0,2})\s+([A-Z]{3})\s*$/;
+            const amountMatch = nextLine.match(amountPattern);
+
+            if (amountMatch) {
+              amount = amountMatch[1];
+              currency = amountMatch[2]; // Capture the currency code!
+              i++; // Skip the next line since we consumed it
+            }
+          }
+
+          // If we didn't find amount on next line, try to extract from current line
+          if (!amount) {
+            const inlineAmountPattern = /\s+([\d,]+\.?\d{0,2})\s*$/;
+            const inlineMatch = merchant.match(inlineAmountPattern);
+            if (inlineMatch) {
+              amount = inlineMatch[1];
+              merchant = merchant.replace(inlineAmountPattern, '').trim();
+            }
+          }
+
+          if (amount && merchant) {
+            const amountNum = Math.abs(parseFloat(amount.replace(/,/g, '')));
+
+            if (amountNum > 0 && !merchant.toLowerCase().includes('balance')) {
+              const fullDate = `${transactionDate}/${statementYear}`;
+
+              transactions.push({
+                date: convertToISODate(fullDate),
+                merchant: merchant.trim(),
+                amount: amountNum,
+                currency: currency, // Include currency code
+                raw_description: `${line} ${amount} ${currency}`,
+                transaction_type: detectTransactionType(merchant),
+              });
+            }
+          }
         }
+      } else {
+        // Chase single-line format
+        // Pattern 1: MM/DD or MM/DD/YYYY at start of line, followed by merchant, then amount
+        // The amount might not have a dollar sign and is at the end
+        const datePattern = /^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(.+?)\s+([-]?[\d,]+\.?\d{0,2})$/;
+        const match = line.match(datePattern);
 
-        // Clean up amount - remove $ and commas, handle negatives
-        amount = amount.replace(/[\$,]/g, '');
-        const amountNum = Math.abs(parseFloat(amount));
+        if (match) {
+          let [, date, merchant, amount] = match;
+          console.log(`  Matched Chase transaction: ${date} | ${merchant} | ${amount}`);
 
-        // Skip if amount is 0 or NaN
-        if (!amountNum || amountNum === 0) continue;
+          // Clean up date - add statement year if not present
+          if (!date.includes('/20') && !date.includes('/19')) {
+            date = `${date}/${statementYear}`;
+          }
 
-        // Skip lines that look like balances (usually have "Balance" in merchant)
-        if (merchant.toLowerCase().includes('balance')) continue;
+          // Clean up merchant - remove any trailing whitespace
+          merchant = merchant.trim();
 
-        transactions.push({
-          date: convertToISODate(date),
-          merchant: merchant.trim(),
-          amount: amountNum,
-          raw_description: line,
-          transaction_type: detectTransactionType(merchant),
-        });
+          // Clean up amount - remove commas, handle negatives
+          amount = amount.replace(/,/g, '');
+          const amountNum = Math.abs(parseFloat(amount));
+
+          // Skip if amount is 0 or NaN
+          if (!amountNum || amountNum === 0) {
+            console.log(`  Skipped: amount is 0 or NaN`);
+            continue;
+          }
+
+          // Skip lines that look like balances or payments
+          if (merchant.toLowerCase().includes('balance') ||
+              merchant.toLowerCase().includes('payment') ||
+              merchant.toLowerCase().includes('thank you')) {
+            console.log(`  Skipped: contains balance/payment/thank you`);
+            continue;
+          }
+
+          console.log(`  Added transaction: ${merchant} $${amountNum}`);
+          transactions.push({
+            date: convertToISODate(date),
+            merchant: merchant.trim(),
+            amount: amountNum,
+            raw_description: line,
+            transaction_type: detectTransactionType(merchant),
+          });
+        }
       }
     }
 
@@ -344,13 +477,14 @@ export async function parsePDF(buffer: Buffer, filename: string = ''): Promise<P
  */
 export async function parseFile(
   buffer: Buffer,
-  filename: string
+  filename: string,
+  manualMapping?: ColumnMapping
 ): Promise<ParseResult> {
   const ext = filename.toLowerCase().split('.').pop();
 
   switch (ext) {
     case 'csv':
-      return await parseCSV(buffer);
+      return await parseCSV(buffer, manualMapping);
     case 'xlsx':
     case 'xls':
       return parseXLSX(buffer);
@@ -367,7 +501,20 @@ export async function parseFile(
  * Convert MM/DD/YYYY to YYYY-MM-DD
  */
 function convertToISODate(date: string): string {
-  const [month, day, year] = date.split('/');
+  const parts = date.split('/');
+
+  if (parts.length !== 3) {
+    console.error(`Invalid date format: "${date}" - expected MM/DD/YYYY`);
+    return date; // Return as-is if format is unexpected
+  }
+
+  const [month, day, year] = parts;
+
+  if (!month || !day || !year) {
+    console.error(`Invalid date parts: month="${month}", day="${day}", year="${year}"`);
+    return date;
+  }
+
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
@@ -406,4 +553,35 @@ export function detectColumnMapping(headers: string[]): ColumnMapping | null {
   }
 
   return null;
+}
+
+/**
+ * Detect currency from transaction description or amount string
+ */
+function detectCurrency(amountString: string, description: string): string {
+  // Common currency symbols and codes
+  const currencyPatterns = [
+    { pattern: /\$|USD/i, code: 'USD' },
+    { pattern: /€|EUR/i, code: 'EUR' },
+    { pattern: /£|GBP/i, code: 'GBP' },
+    { pattern: /¥|JPY/i, code: 'JPY' },
+    { pattern: /SEK/i, code: 'SEK' },
+    { pattern: /NOK/i, code: 'NOK' },
+    { pattern: /DKK/i, code: 'DKK' },
+    { pattern: /CHF/i, code: 'CHF' },
+    { pattern: /CAD/i, code: 'CAD' },
+    { pattern: /AUD/i, code: 'AUD' },
+    { pattern: /CNY/i, code: 'CNY' },
+    { pattern: /INR|₹/i, code: 'INR' },
+  ];
+
+  const combinedText = `${amountString} ${description}`;
+
+  for (const { pattern, code } of currencyPatterns) {
+    if (pattern.test(combinedText)) {
+      return code;
+    }
+  }
+
+  return 'USD'; // Default to USD if no currency detected
 }

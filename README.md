@@ -11,20 +11,32 @@ Vault helps you understand your spending habits by automatically categorizing cr
 ## Features
 
 - **Multi-Format Import** - Import CSV, XLSX, TXT, and PDF files from any bank (Chase, BofA, etc.)
-- **Automatic Categorization** - AI-powered transaction categorization using Google Gemini
-- **Spending Analytics** - Visualize spending breakdowns by category with charts and percentages
-- **Transaction Management** - Search, filter, and manually override categorizations
+- **Multiple File Upload** - Select and import multiple files at once, even different file types
+- **Duplicate Detection** - Automatically detects and prevents re-importing existing transactions
+- **Smart Column Mapping** - Auto-detect columns or manually map them with an intuitive UI
+- **Import Preview** - Review transactions before importing with a preview table
+- **Automatic Categorization** - AI-powered batch categorization using Google Gemini (processes all merchants in one API call)
+- **Multi-Currency Support** - Import and convert transactions from 12 currencies with automatic exchange rates
+- **Spending Analytics** - Interactive pie charts and monthly trend bar charts
+- **Transaction Management** - Search, filter, edit, and delete transactions with advanced filters
+- **Vendor Matching** - Find and bulk-update similar transactions with fuzzy matching
+- **Date Range Filtering** - Filter transactions by custom date ranges
+- **Export Functionality** - Export transactions to CSV or generate HTML reports for printing
 - **Local Storage** - All data stored locally in SQLite (no cloud dependencies)
 - **Privacy-First** - Desktop-only application with no external data sharing
 
 ## Tech Stack
 
-- **Frontend:** Next.js (React) + TypeScript
-- **Desktop:** Electron
-- **Database:** SQLite (better-sqlite3)
-- **AI Categorization:** Google Gemini API
-- **Charts:** Recharts / Chart.js
-- **CSV Parsing:** PapaParse
+- **Frontend:** Next.js 15.1.0, React 19.0.0, TypeScript 5.7.2
+- **Desktop:** Electron 33.2.0
+- **Database:** SQLite 3 with better-sqlite3
+- **AI Categorization:** Google Gemini API (gemini-2.5-flash-lite)
+- **UI Components:** Radix UI (accessible components)
+- **Styling:** Tailwind CSS 3.4
+- **Charts:** Recharts 2.15.0
+- **File Parsing:** PapaParse (CSV), XLSX (Excel), pdf-parse (PDF)
+- **Currency Exchange:** Free Currency API with caching
+- **Vendor Matching:** Jaro-Winkler similarity algorithm
 
 ## Quick Start
 
@@ -60,15 +72,30 @@ npm run start
 
 ```
 vault/
-├── docs/               # Comprehensive documentation
+├── docs/                          # Comprehensive documentation
+├── electron/                      # Electron main process
 ├── src/
-│   ├── app/           # Next.js app directory
-│   ├── components/    # React components
-│   ├── lib/           # Utilities and helpers
-│   ├── electron/      # Electron main process
-│   └── db/            # Database schema and queries
-├── public/            # Static assets
-└── README.md          # This file
+│   ├── app/                      # Next.js pages
+│   │   ├── import/              # Import flow pages
+│   │   └── transactions/page.tsx # Transaction list
+│   ├── components/
+│   │   ├── features/             # Feature-specific components
+│   │   │   ├── import/           # Import flow components
+│   │   │   └── transactions/     # Transaction components
+│   │   └── ui/                   # Reusable UI components (shadcn/ui)
+│   ├── lib/
+│   │   ├── categorization/       # AI categorization logic
+│   │   ├── vendor-matching/      # Similarity matching
+│   │   ├── services/             # Exchange rate service
+│   │   ├── types/                # TypeScript interfaces
+│   │   ├── constants/            # Categories, colors
+│   │   └── utils/                # Parsers, formatters
+│   └── db/
+│       ├── schema/schema.sql     # Base database schema
+│       └── migrations/           # Database migrations
+├── public/                        # Static assets
+├── scripts/                       # Utility scripts
+└── README.md                      # This file
 ```
 
 ## Documentation
@@ -106,27 +133,34 @@ Read our full [Security Policy](SECURITY.md) for details.
 
 ## Roadmap
 
-**Current Status:** Planning & Architecture Phase
+**Current Status:** 🎉 **MVP Complete!** - Ready for beta testing and production use!
 
-**MVP (Phase 1):**
-- [ ] CSV import with column mapping
-- [ ] Gemini API categorization
-- [ ] Basic dashboard with spending charts
-- [ ] Transaction list with search/filter
-- [ ] Manual category overrides
+**MVP (Phase 1):** ✅ **100% Complete**
+- [x] CSV/XLSX/TXT/PDF import with auto-detection
+- [x] Manual column mapping UI
+- [x] Import preview with transaction review
+- [x] Multiple file upload support
+- [x] Duplicate transaction detection
+- [x] Batch Gemini API categorization (optimized!)
+- [x] Multi-currency support (12 currencies)
+- [x] Vendor similarity matching
+- [x] Dashboard with pie chart analytics
+- [x] Monthly trend bar chart
+- [x] Transaction list with search/filter/edit/delete
+- [x] Date range filtering
+- [x] Manual category overrides
+- [x] Transaction type detection (purchase/transfer/income)
+- [x] Export to CSV and HTML reports
 
 **Post-MVP (Phase 2+):**
-- Additional credit card categories
-- Credit card comparison tool
-- Budget tracking
+- Additional spending categories
+- Budget tracking and alerts
 - Recurring transaction detection
-- Export capabilities
+- Credit card comparison tool
+- Multi-account support
+- Smart tagging and notes
 
 See the full [Roadmap](docs/ROADMAP.md) for details.
-
-## Screenshots
-
-*Coming soon - application in development*
 
 ## License
 
@@ -137,7 +171,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with [Electron](https://www.electronjs.org/)
 - Powered by [Google Gemini AI](https://ai.google.dev/)
 - Charts by [Recharts](https://recharts.org/)
-
----
-
-**Project Status:** Currently in planning and documentation phase. Check back soon for updates!

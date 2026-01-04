@@ -1,15 +1,23 @@
 # Changelog
 
-## [1.0.0] - 2026-01-03
+All notable changes to Vault will be documented in this file.
+
+## [1.0.0] - 2026-01-03 - MVP Complete! 🎉
 
 ### Added - MVP Release
 
 #### Core Features
 - **Multi-format file import** - Support for CSV, XLSX, TXT, and PDF files
-- **AI-powered categorization** - Gemini API integration for automatic transaction categorization
+- **Duplicate detection** - Automatically prevents re-importing existing transactions
+- **Multiple file upload** - Import multiple files at once
+- **AI-powered categorization** - Gemini API with 3-tier system (patterns, cache, API)
+- **277 merchant patterns** - Instant categorization for known merchants
 - **Merchant caching** - Smart caching to minimize API calls and costs
+- **Multi-currency support** - 12 currencies with automatic conversion to USD
 - **Dashboard analytics** - Real-time spending statistics and category breakdown
+- **Vendor matching** - Fuzzy matching to find and bulk-update similar merchants
 - **Transaction management** - Full CRUD operations with search and filtering
+- **Export functionality** - CSV export and HTML report generation
 - **Local SQLite database** - Privacy-first local storage with no cloud dependencies
 
 #### File Format Support
@@ -51,14 +59,30 @@
 - Development guide
 - Contributing guidelines
 
+### Completed in This Release
+
+- ✅ Multi-format import (CSV, XLSX, TXT, PDF)
+- ✅ Duplicate detection with visual warnings
+- ✅ AI categorization with 3-tier system
+- ✅ Multi-currency support (12 currencies)
+- ✅ Vendor similarity matching
+- ✅ Dashboard with interactive charts
+- ✅ Transaction management with filters
+- ✅ Date range filtering
+- ✅ CSV and HTML export
+- ✅ Pagination with configurable page size
+- ✅ Pattern-based categorization (277 patterns)
+- ✅ Database migration system
+- ✅ Exchange rate caching
+
 ### Known Limitations
 
 - PDF parsing is experimental and may not work for all banks
-- No automatic CSV column mapping UI yet (uses auto-detection)
-- Sample data only for demo import
-- No date range filtering on dashboard yet
-- No export functionality yet
-- Charts not yet implemented (using progress bars)
+- Duplicate detection uses ±$0.01 threshold (may miss some edge cases)
+- HTML export requires manual print-to-PDF (no native PDF generation)
+- No budget tracking yet (Phase 2)
+- No recurring transaction detection yet (Phase 2)
+- No credit card comparison tool yet (Phase 2)
 
 ### Dependencies
 
@@ -136,17 +160,17 @@ vault/
 └── README.md            # Project overview
 ```
 
-### Next Steps (Post-MVP)
+### Next Steps (Phase 2)
 
 See [ROADMAP.md](docs/ROADMAP.md) for planned features:
-- Enhanced PDF parsing with bank-specific parsers
-- Visual charts (pie charts, bar charts) using Recharts
-- Date range filtering
-- Budget tracking
+- Budget tracking and alerts
 - Recurring transaction detection
-- CSV export functionality
-- Credit card comparison tool
-- Additional spending categories
+- Credit card comparison tool (calculate optimal rewards)
+- Additional spending categories (Entertainment, Streaming, Transit, etc.)
+- Multi-account support
+- Smart tagging and notes
+- Enhanced PDF parsing with bank-specific parsers
+- Advanced category analytics with drill-down
 
 ### Breaking Changes
 

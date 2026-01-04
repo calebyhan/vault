@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Calendar } from "./calendar"
 import { cn } from "@/lib/utils"
+import { normalizeDateToISO } from "@/lib/utils/date-utils"
 
 export interface DatePickerProps {
   value?: string
@@ -42,7 +43,13 @@ export function DatePicker({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setInputValue(newValue)
-    onChange?.(newValue)
+    // Normalize the date before passing to parent
+    if (newValue) {
+      const normalized = normalizeDateToISO(newValue)
+      onChange?.(normalized)
+    } else {
+      onChange?.(newValue)
+    }
   }
 
   const handleInputFocus = () => {

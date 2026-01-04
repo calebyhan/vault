@@ -4,11 +4,15 @@
 
 - [Overview](#overview)
 - [Feature Summary](#feature-summary)
-- [CSV Import](#csv-import)
+- [Multi-Format Import](#multi-format-import)
+- [Duplicate Detection](#duplicate-detection)
 - [Automatic Categorization](#automatic-categorization)
+- [Multi-Currency Support](#multi-currency-support)
 - [Dashboard Analytics](#dashboard-analytics)
 - [Transaction Management](#transaction-management)
+- [Vendor Matching](#vendor-matching)
 - [Search and Filtering](#search-and-filtering)
+- [Export Functionality](#export-functionality)
 - [User Stories](#user-stories)
 - [Related Documentation](#related-documentation)
 
@@ -20,19 +24,27 @@ Vault provides a streamlined workflow for importing, categorizing, and analyzing
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **CSV Import** | Planned | Import transaction CSV files from any bank |
-| **Column Mapping** | Planned | Map CSV columns to transaction fields |
-| **AI Categorization** | Planned | Automatic categorization using Gemini API |
-| **Merchant Caching** | Planned | Cache categorizations to reduce API calls |
-| **Dashboard** | Planned | Visual spending analytics and charts |
-| **Category Breakdown** | Planned | Pie chart of spending by category |
-| **Trend Analysis** | Planned | Month-over-month spending trends |
-| **Transaction List** | Planned | Searchable, filterable transaction table |
-| **Manual Overrides** | Planned | Edit categories and transaction types |
-| **Date Filtering** | Planned | Filter by custom date ranges |
-| **Export** | Future | Export filtered data to CSV |
-| **Budget Tracking** | Future | Set and monitor budget limits |
-| **Recurring Detection** | Future | Identify recurring transactions |
+| **Multi-Format Import** | ✅ Complete | Import CSV, XLSX, TXT, PDF files from any bank |
+| **Multiple File Upload** | ✅ Complete | Import multiple files at once |
+| **Duplicate Detection** | ✅ Complete | Prevent re-importing existing transactions |
+| **Column Mapping** | ✅ Complete | Auto-detect or manually map CSV columns |
+| **AI Categorization** | ✅ Complete | 3-tier categorization (patterns, cache, API) |
+| **Pattern Matching** | ✅ Complete | 277 hardcoded merchant patterns |
+| **Merchant Caching** | ✅ Complete | Cache categorizations to reduce API calls |
+| **Multi-Currency** | ✅ Complete | Support 12 currencies with auto-conversion |
+| **Dashboard** | ✅ Complete | Visual spending analytics and charts |
+| **Category Breakdown** | ✅ Complete | Interactive pie chart of spending |
+| **Trend Analysis** | ✅ Complete | Month-over-month spending trends |
+| **Transaction List** | ✅ Complete | Searchable, filterable transaction table |
+| **Vendor Matching** | ✅ Complete | Find and bulk-update similar merchants |
+| **Manual Overrides** | ✅ Complete | Edit categories and transaction types |
+| **Date Filtering** | ✅ Complete | Filter by custom date ranges |
+| **Pagination** | ✅ Complete | Configurable items per page |
+| **Export to CSV** | ✅ Complete | Export filtered data to CSV |
+| **Export to HTML** | ✅ Complete | Generate printable HTML reports |
+| **Budget Tracking** | Phase 2 | Set and monitor budget limits |
+| **Recurring Detection** | Phase 2 | Identify recurring transactions |
+| **Credit Card Comparison** | Phase 2 | Calculate optimal credit card rewards |
 
 ## CSV Import
 
@@ -576,9 +588,138 @@ function buildFilterQuery(filters: TransactionFilters): string {
 
 **Outcome:** User stays within budget goals
 
+---
+
+## Duplicate Detection
+
+### Purpose
+
+Automatically detect and prevent re-importing transactions that already exist in the database.
+
+### How It Works
+
+**Detection Algorithm:**
+- Matches on three criteria:
+  1. Same date (normalized to YYYY-MM-DD)
+  2. Same merchant (case-insensitive comparison)
+  3. Same amount (within ±$0.01 threshold)
+
+**User Experience:**
+1. During import preview, system checks all transactions against database
+2. If duplicates found, displays warning card with details
+3. Shows expandable list of matching transactions
+4. User can click "Remove All Duplicates" to exclude from import
+5. Import proceeds only with non-duplicate transactions
+
+**Benefits:**
+- Prevents accidental double-counting of spending
+- Maintains data integrity
+- Saves time by avoiding manual duplicate cleanup
+
+---
+
+## Multi-Currency Support
+
+### Purpose
+
+Support importing and analyzing transactions in multiple currencies with automatic conversion to USD.
+
+### Supported Currencies
+
+USD, EUR, GBP, JPY, CAD, AUD, SEK, NOK, DKK, CHF, CNY, INR (12 total)
+
+### How It Works
+
+**Import Flow:**
+1. Parser detects currency from transaction description (e.g., "SEK 150.00")
+2. System fetches exchange rate for transaction date
+3. Stores both original amount/currency and USD-converted amount
+4. Exchange rate cached in database for reuse
+
+**Display:**
+- Dashboard shows all amounts in USD for consistent analysis
+- Transaction table shows original currency with USD equivalent
+- Edit dialog includes currency selector for manual corrections
+
+**Exchange Rate Source:**
+- Free currency API with CDN + fallback
+- Rates cached by date to minimize API calls
+- Automatic retry logic for failed requests
+
+---
+
+## Vendor Matching
+
+### Purpose
+
+Find transactions from similar vendors and bulk-update their categories.
+
+### How It Works
+
+**Similarity Algorithm:**
+- Uses Jaro-Winkler distance for fuzzy string matching
+- Removes common noise (store numbers, locations, payment processors)
+- Token-based comparison for multi-word merchants
+- Abbreviation expansion (MKT → MARKET)
+
+**User Experience:**
+1. Click "Find Similar" on any transaction
+2. System shows grouped similar merchants with similarity scores
+3. High-confidence matches (≥85%) pre-selected
+4. User can adjust threshold and selection
+5. Click "Update Selected" to bulk-categorize
+
+**Use Cases:**
+- Variations of same merchant: "Starbucks #1234" vs "Starbucks Coffee"
+- Common misspellings or abbreviations
+- Bulk categorization of past transactions after learning pattern
+
+---
+
+## Export Functionality
+
+### Purpose
+
+Export transaction data for external analysis or record-keeping.
+
+### Export Formats
+
+**1. CSV Export**
+- All filtered transactions
+- Columns: Date, Merchant, Amount (USD), Original Amount, Currency, Category, Type, Description
+- Proper CSV formatting with quote escaping
+- Respects all active filters (search, category, type, date range)
+- Native file save dialog
+
+**2. HTML Report Export**
+- Styled, printable report
+- Includes:
+  - Summary statistics (total spent, transaction count, average)
+  - Category breakdown with percentages
+  - Top 100 recent transactions
+  - Professional formatting for printing
+- User can print to PDF using browser's print function
+
+### Access Points
+
+**Transactions Page:**
+- "Export CSV" button in header
+- Exports with current filters applied
+
+**Settings Dialog:**
+- "Export as CSV" - all transactions
+- "Export as HTML Report" - full report with analytics
+
+### Privacy Note
+
+All exports are saved locally to user's computer. No data transmitted to cloud services.
+
+---
+
 ## Related Documentation
 
 - [Architecture](ARCHITECTURE.md) - System architecture
 - [Categories](CATEGORIES.md) - Category definitions
 - [API Integration](API.md) - Gemini API categorization
 - [Database Schema](DATABASE.md) - Data storage
+- [Implementation Summary](../IMPLEMENTATION_SUMMARY.md) - Recent feature implementations

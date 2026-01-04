@@ -37,6 +37,10 @@ export async function initializeDatabase(): Promise<void> {
     // Execute schema
     db.exec(schema);
 
+    // Run migrations
+    const { runMigrations } = await import('../src/db/migrations/migration-runner');
+    runMigrations(db);
+
     console.log('Database initialized successfully at:', dbPath);
   } catch (error) {
     console.error('Failed to initialize database:', error);
