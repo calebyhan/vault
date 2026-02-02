@@ -2,6 +2,15 @@
 
 All notable changes to Vault will be documented in this file.
 
+## [1.0.2] - 2026-02-01
+
+### Fixed
+- **Import functionality** - Fixed critical bug preventing file uploads from working
+  - Fixed `TypeError: a.get is not a function` error during batch categorization
+  - Changed `batchCategorize` to properly return `Record<string, any>` instead of `Map<string, any>`
+  - Updated type definitions in `electron/preload.ts` and `src/types/electron.d.ts`
+  - Fixed import page to use object property access instead of Map.get() method
+
 ## [1.0.1] - 2026-01-04
 
 ### Fixed

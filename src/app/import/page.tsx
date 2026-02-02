@@ -241,7 +241,7 @@ export default function ImportPage() {
       // Currency conversion will happen automatically in the IPC handler
       for (let i = 0; i < allTransactions.length; i++) {
         const trans = allTransactions[i];
-        const merchantCategories = categorizations.get(trans.merchant);
+        const merchantCategories = categorizations[trans.merchant];
 
         await window.electronAPI.addTransaction({
           date: trans.date,

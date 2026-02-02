@@ -18,7 +18,7 @@ export interface ElectronAPI {
 
   // Categorization
   categorizeTransaction: (merchant: string) => Promise<any>;
-  batchCategorize: (merchants: string[]) => Promise<Map<string, any>>;
+  batchCategorize: (merchants: string[]) => Promise<Record<string, any>>;
 
   // Analytics
   getDashboardStats: (dateFrom?: string, dateTo?: string) => Promise<any>;
